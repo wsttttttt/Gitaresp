@@ -168,3 +168,59 @@ git checkout -b 分支名   创建新分支并立即切换到其下
 首先，要完成minist手写数据集，肯定离不开numpy，pytorch。在pycharm屡屡报错的情况下，我这里选择的方法是使用anaconda+VScode完成任务（新手友好，傻瓜操作）。 在下完anaconda之后，通过anaconda prompt导入pytorch，再在vscode中添加相关环境，我还添加了jupyter，方便调试。
 
 这里cnn先放了一些从网上学来的代码试试
+
+#### 池化
+
+池化的意义在于特征降维，池化技术大大降低了对于计算资源的损耗，除此以外还有降低模型过拟合的优点。池化的思想来源于图像特征聚合统计，通俗理解就是池化虽然会使得图像变得模糊但不影响图像的辨认跟位置判断；池化还有一个优点就是平移不变性，即如果物体在图像中发生一个较小的平移（不超过感受野）,那么这样的位移并不会影像池化的效果，从而不会对模型的特征图提取发生影响。
+
+#### 张量
+
+**Tensor**可以将其理解为多维数组，其可以具有任意多的维度，不同**Tensor**可以有不同的**数据类型** (dtype) 和**形状** (shape)。
+
+#### dataloader
+
+- Dataset 提供整个数据集的随机访问功能，每次调用都返回单个对象，例如一张图片和对应 target 等等
+- Sampler 提供整个数据集随机访问的索引列表，每次调用都返回所有列表中的单个索引，常用子类是 SequentialSampler 用于提供顺序输出的索引 和 RandomSampler 用于提供随机输出的索引
+- BatchSampler 内部调用 Sampler 实例，输出指定 `batch_size` 个索引，然后将索引作用于 Dataset 上从而输出 `batch_size` 个数据对象，例如 batch 张图片和 batch 个 target
+- collate_fn 用于将 batch 个数据对象在 batch 维度进行聚合，生成 (b,...) 格式的数据输出，如果待聚合对象是 numpy，则会自动转化为 tensor，此时就可以输入到网络中了
+- shuffle 打乱顺序
+
+#### 交叉熵CROSSENTROPYLOSS
+
+具体过程就是softmax+log+nlloss
+
+#### 优化器选择
+
+**Adam**
+
+Adam 算法的提出者描述其为两种随机梯度下降扩展式的优点集合，即：
+
+- 适应性梯度算法（AdaGrad）为每一个参数保留一个学习率以提升在稀疏梯度（即自然语言和计算机视觉问题）上的性能。
+
+- 均方根传播（RMSProp）基于权重梯度最近量级的均值为每一个参数适应性地保留学习率。这意味着算法在非稳态和在线问题上有很有优秀的性能。
+
+  
+
+  Adam 算法同时获得了 AdaGrad 和 RMSProp 算法的优点。Adam 不仅如 RMSProp 算法那样基于一阶矩均值计算适应性参数学习率，它同时还充分利用了梯度的二阶矩均值（即有偏方差/uncentered variance）。具体来说，算法计算了梯度的指数移动均值（exponential moving average），超参数 beta1 和 beta2 控制了这些移动均值的衰减率。
+
+#### 超参数
+
+超参数是在开始学习过程之前设置值的参数，而不是通过训练得到的参数数据。通常情况下，需要对超参数进行优化，给[学习机](https://baike.sogou.com/lemma/ShowInnerLink.htm?lemmaId=2099387&ss_c=ssc.citiao.link)选择一组最优超参数，以提高学习的性能和效果
+例如
+
+```
+EPOCH = 1  # 训练的次数
+BATCH_SIZE = 50 #每次的图片数量
+LR = 0.001  # 学习率
+DOWNLOAD_MNIST = False  # True表示还没有下载数据集，如果数据集下载好了就写False
+```
+
+#### 全卷积神经网络
+
+全卷积神经网络，顾名思义是该网络中全是卷积层链接，如下图：
+
+![img](https://pic2.zhimg.com/80/v2-9c01766a9e070839ac10ff7bfdc083b1_720w.webp)
+
+图2 FCN网络结构
+
+该网络在前面两步跟CNN的结构是一样的，但是在CNN网络Flatten的时候，FCN网络将之换成了一个卷积核size为5x5，输出通道为50的卷积层，之后的全连接层都换成了1x1的卷积层。

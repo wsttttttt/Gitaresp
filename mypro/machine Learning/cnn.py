@@ -1,181 +1,151 @@
-import numpy as np
+# 训练+测试
+
+
+import torch
+import torch.nn as nn
+import torch.utils.data as Data
+import torchvision
 import matplotlib.pyplot as plt
-import math
-import struct
+import os
+import cv2
 
 
-class Nerual_Network(object):
-    # 初始化神经网络
-    def __init__(self, inputnodes, hiddennodes, outputnodes, learningrate):
-        """
-        :param inputnodes: 输入层结点数
-        :param hiddennodes: 隐藏层结点数
-        :param outputnodes: 输出层结点数
-        :param learningrate: 学习率
-        """
-        self.inputnodes = inputnodes
-        self.hiddennodes = hiddennodes
-        self.outputnodes = outputnodes
-        self.learningrate = learningrate
-        # 输入层与隐藏层权重矩阵初始化
-        self.w1 = np.random.randn(self.hiddennodes, self.inputnodes) * 0.01
-        # 隐藏层与输出层权重矩阵初始化
-        self.w2 = np.random.randn(self.outputnodes, self.hiddennodes) * 0.01
-        # 构建第一层常量矩阵100 by 1 matrix
-        self.b1 = np.zeros((200, 1))
-        # 构建第二层常量矩阵 10 by 1 matrix
-        self.b2 = np.zeros((10, 1))
-        # 定义迭代次数
-        self.epoch = 5
+torch.manual_seed(1)  # 使用随机化种子使神经网络的初始化每次都相同
 
-    # 激活函数
-    def softmax(self, x):
-        """
-        :param x: 输入数据
-        :return:返回softmax激活函数值
-        """
-        from scipy.special import expit
-        return expit(x)
+# 超参数
+EPOCH = 1  # 训练整批数据的次数
+BATCH_SIZE = 50
+LR = 0.001  # 学习率
+DOWNLOAD_MNIST = False  # True表示还没有下载数据集，如果数据集下载好了就写False
 
-    def tanh(self, x):
-        """
-        :param x: 输入数据
-        :return: 返回tanh激活函数值
-        """
-        return (np.exp(x) - np.exp(-x)) / (np.exp(x) + np.exp(-x))
+# 下载mnist手写数据集
+train_data = torchvision.datasets.MNIST(
+    root='./data/',  # 保存或提取的位置  会放在当前文件夹中
+    train=True,  # true说明是用于训练的数据，false说明是用于测试的数据
+    transform=torchvision.transforms.ToTensor(),  # 转换PIL.Image or numpy.ndarray
 
-    # 定义损失函数
-    def loss_function(self, origin_label, fp_result):
-        return -origin_label * (math.log2(fp_result)) - (1 - origin_label) * (math.log2(1 - fp_result))
+    download=DOWNLOAD_MNIST,  # 已经下载了就不需要下载了
+)
 
-    # 前向传播
-    def forward_propagation(self, input_data, weight_matrix, b):
-        """
+test_data = torchvision.datasets.MNIST(
+    root='./data/',
+    train=False  # 表明是测试集
+)
 
-        :param input_data: 输入数据
-        :param weight_matrix: 权重矩阵
-        :return: 激活函数后输出的活性值
-        """
-        z = np.add(np.dot(weight_matrix, input_data), b)
-        return z, self.softmax(z)
+# 批训练 50个samples， 1  channel，28x28 (50,1,28,28)
+# Torch中的DataLoader是用来包装数据的工具，它能帮我们有效迭代数据，这样就可以进行批训练
+train_loader = Data.DataLoader(
+    dataset=train_data,
+    batch_size=BATCH_SIZE,
+    shuffle=True  # 是否打乱数据，一般都打乱
+)
 
-    # 反向传播
-    def back_propagation(self, a, z, da, weight_matrix, b):
-        dz = da * (z * (1 - z))
-        weight_matrix -= self.learningrate * np.dot(dz, a.T) / 60000
-        b -= self.learningrate * np.sum(dz, axis=1, keepdims=True) / 60000
-        da_n = np.dot(weight_matrix.T, da)
-        return da_n
-
-    # 训练模型
-    def train(self, input_data, label_data):
-        for item in range(self.epoch):
-            print('第%d轮次开始执行' % item)
-            for i in range(60000):
-                # 前向传播
-                z1, a1 = self.forward_propagation(input_data[:, i].reshape(-1, 1), self.w1, self.b1)
-                z2, a2 = self.forward_propagation(a1, self.w2, self.b2)
-                # 计算da[2]
-                dz2 = a2 - label_data[:, i].reshape(-1, 1)
-                dz1 = np.dot(self.w2.T, dz2) * a1 * (1.0 - a1)
-                # 反向传播过程
-                self.w2 -= self.learningrate * np.dot(dz2, a1.T)
-                self.b2 -= self.learningrate * dz2
-
-                self.w1 -= self.learningrate * np.dot(dz1, (input_data[:, i].reshape(-1, 1)).T)
-                self.b1 -= self.learningrate * dz1
-
-    def train_vector(self, train_data, train_label):
-        for item in range(self.epoch):
-            print('正在执行第%d轮次' % item)
-            # 前向传播
-            z1, a1 = self.forward_propagation(train_data, self.w1, self.b1)
-            z2, a2 = self.forward_propagation(a1, self.w2, self.b2)
-            dz2 = a2 - train_label
-            dz1 = np.dot(self.w2.T, dz2) * a1 * (1 - a1)
-            # 反向传播
-            self.w2 -= self.learningrate * np.dot(dz2, a1.T) / 60000
-            self.b2 -= self.learningrate * np.sum(dz2, axis=1, keepdims=True) / 60000
-            self.w1 -= self.learningrate * np.dot(dz1, train_data.T) / 60000
-            self.b1 -= self.learningrate * np.sum(dz1, axis=1, keepdims=True) / 60000
-
-    # 预测
-    def predict(self, input_data, label):
-        precision = 0
-        for i in range(10000):
-            z1, a1 = self.forward_propagation(input_data[:, i].reshape(-1, 1), self.w1, self.b1)
-            z2, a2 = self.forward_propagation(a1, self.w2, self.b2)
-            print(a2)
-            print('模型预测值为:{0},\n实际值为{1}'.format(np.argmax(a2), label[i]))
-            if np.argmax(a2) == label[i]:
-                precision += 1
-        print("准确率：%d" % (100 * precision / 10000) + "%")
-
-    # 向量训练的预测结果
-    def predict_vector(self, input_data, label):
-        z1, a1 = self.forward_propagation(input_data, self.w1, self.b1)
-        z2, a2 = self.forward_propagation(a1, self.w2, self.b2)
-        precision=0
-        for item in range(10000):
-            if np.argmax(a2[:,item])==label[item]:
-                precision+=1
-        print('准确率：{0}%'.format(precision*100/10000))
-
-# 读取原始数据并进行预处理
-def data_fetch_preprocessing():
-    train_image = open('train-images.idx3-ubyte', 'rb')
-    test_image = open('t10k-images.idx3-ubyte', 'rb')
-    train_label = open('train-labels.idx1-ubyte', 'rb')
-    test_label = open('t10k-labels.idx1-ubyte', 'rb')
-
-    magic, n = struct.unpack('>II',
-                             train_label.read(8))
-    # 原始数据的标签
-    y_train_label = np.array(np.fromfile(train_label,
-                                         dtype=np.uint8), ndmin=1)
-    y_train = np.ones((10, 60000)) * 0.01
-    for i in range(60000):
-        y_train[y_train_label[i]][i] = 0.99
-
-    # 测试数据的标签
-    magic_t, n_t = struct.unpack('>II',
-                                 test_label.read(8))
-    y_test = np.fromfile(test_label,
-                         dtype=np.uint8).reshape(10000, 1)
-    # print(y_train[0])
-    # 训练数据共有60000个
-    # print(len(labels))
-    magic, num, rows, cols = struct.unpack('>IIII', train_image.read(16))
-    x_train = np.fromfile(train_image, dtype=np.uint8).reshape(len(y_train_label), 784).T
-
-    magic_2, num_2, rows_2, cols_2 = struct.unpack('>IIII', test_image.read(16))
-    x_test = np.fromfile(test_image, dtype=np.uint8).reshape(len(y_test), 784).T
-    # print(x_train.shape)
-    # 可以通过这个函数观察图像
-    # data=x_train[:,0].reshape(28,28)
-    # plt.imshow(data,cmap='Greys',interpolation=None)
-    # plt.show()
-    x_train = x_train / 255 * 0.99 + 0.01
-    x_test = x_test / 255 * 0.99 + 0.01
-
-    # 关闭打开的文件
-    train_image.close()
-    train_label.close()
-    test_image.close()
-    test_label.close()
-
-    return x_train, y_train, x_test, y_test
+# 进行测试
+# 算力太弱，测试时只测试前2000个
+#
+test_x = torch.unsqueeze(test_data.train_data, dim=1).type(torch.FloatTensor)[:2000] / 255
+# torch.unsqueeze(a) 是用来对数据维度进行扩充，这样shape就从(2000,28,28)->(2000,1,28,28)
+# 图像的pixel本来是0到255之间，除以255对图像进行归一化使取值范围在(0,1)
+test_y = test_data.test_labels[:2000]
 
 
-if __name__ == '__main__':
-    # 输入层数据维度784，隐藏层100，输出层10
-    dl = Nerual_Network(784, 200, 10, 0.1)
-    x_train, y_train, x_test, y_test = data_fetch_preprocessing()
-    # 循环训练方法
-    dl.train(x_train, y_train)
-    # 向量化训练方法
+# 用class类来建立CNN模型
+# CNN流程：卷积(Conv2d)-> 激励函数(ReLU)->池化(MaxPooling)->
+#        卷积(Conv2d)-> 激励函数(ReLU)->池化(MaxPooling)->
+#        展平多维的卷积成的特征图->接入全连接层(Linear)->输出
 
-    # 预测模型
-    dl.predict(x_test, y_test)
-    # dl.train_vector(x_train,y_train)
-    # dl.predict_vector(x_test,y_test)
+class CNN(nn.Module):  # 我们建立的CNN继承nn.Module这个模块
+    def __init__(self):
+        super(CNN, self).__init__()
+        # 建立第一个卷积(Conv2d)-> 激励函数(ReLU)->池化(MaxPooling)
+        self.conv1 = nn.Sequential(
+            # 第一个卷积con2d
+            nn.Conv2d(  # 输入图像大小(1,28,28)
+                in_channels=1,  # 输入图片的高度，因为minist数据集是灰度图像只有一个通道
+                out_channels=16,  # n_filters 卷积核的高度
+                kernel_size=5,  # filter size 卷积核的大小 也就是长x宽=5x5
+                stride=1,  # 步长
+                padding=2,  # 想要con2d输出的图片长宽不变，就进行补零操作 padding = (kernel_size-1)/2
+            ),  # 输出图像大小(16,28,28)
+            # 激活函数
+            nn.ReLU(),
+            # 池化，下采样
+            nn.MaxPool2d(kernel_size=2),  # 在2x2空间下采样
+            # 输出图像大小(16,14,14)
+        )
+        # 建立第二个卷积(Conv2d)-> 激励函数(ReLU)->池化(MaxPooling)
+        self.conv2 = nn.Sequential(
+            # 输入图像大小(16,14,14)
+            nn.Conv2d(  # 也可以直接简化写成nn.Conv2d(16,32,5,1,2)
+                in_channels=16,
+                out_channels=32,
+                kernel_size=5,
+                stride=1,
+                padding=2
+            ),
+            # 输出图像大小 (32,14,14)
+            nn.ReLU(),
+            nn.MaxPool2d(2),
+            # 输出图像大小(32,7,7)
+        )
+        # 建立全卷积连接层
+        self.out = nn.Linear(32 * 7 * 7, 10)  # 输出是10个类
+
+    # 下面定义x的传播路线
+    def forward(self, x):
+        x = self.conv1(x)  # x先通过conv1
+        x = self.conv2(x)  # 再通过conv2
+        # 把每一个批次的每一个输入都拉成一个维度，即(batch_size,32*7*7)
+        # 因为pytorch里特征的形式是[bs,channel,h,w]，所以x.size(0)就是batchsize
+        x = x.view(x.size(0), -1)  # view就是把x弄成batchsize行个tensor
+        output = self.out(x)
+        return output
+
+
+cnn = CNN()
+print(cnn)
+
+# 训练
+# 把x和y 都放入Variable中，然后放入cnn中计算output，最后再计算误差
+
+# 优化器选择Adam
+optimizer = torch.optim.Adam(cnn.parameters(), lr=LR) 
+# 损失函数
+loss_func = nn.CrossEntropyLoss()  # 目标标签是one-hotted,这里就有运用到交叉熵损失，也就是softmax+log+nlloss
+""""
+# 开始训练
+for epoch in range(EPOCH):
+     for step, (b_x, b_y) in enumerate(train_loader):  # 分配batch data
+         output = cnn(b_x)  # 先将数据放到cnn中计算output
+         loss = loss_func(output, b_y)  # 输出和真实标签的loss，二者位置不可颠倒
+         optimizer.zero_grad()  # 清除之前学到的梯度的参数
+         loss.backward()  # 反向传播，计算梯度
+         optimizer.step()  # 应用梯度
+#
+         if step % 50 == 0:
+             test_output = cnn(test_x)
+             pred_y = torch.max(test_output, 1)[1].data.numpy()
+             accuracy = float((pred_y == test_y.data.numpy()).astype(int).sum()) / float(test_y.size(0))   #这里是准确度的一种粗糙的算法
+             print('Epoch: ', epoch, '| train loss: %.4f' % loss.data.numpy(), '| test accuracy: %.2f' % accuracy)
+
+torch.save(cnn.state_dict(), 'cnn2.pkl')#保存模型
+"""
+# 加载模型，调用时需将前面训练及保存模型的代码注释掉，否则会再训练一遍
+cnn.load_state_dict(torch.load('cnn2.pkl'))
+cnn.eval()
+# print 10 predictions from test data
+inputs = test_x[:40]  # 测试32个数据
+test_output = cnn(inputs)
+pred_y = torch.max(test_output, 1)[1].data.numpy()
+print(pred_y, 'prediction number')  # 打印识别后的数字
+# print(test_y[:10].numpy(), 'real number')
+
+img = torchvision.utils.make_grid(inputs)
+img = img.numpy().transpose(1, 2, 0)
+
+# 下面三行为改变图片的亮度
+std = [0.5, 0.5, 0.5]
+mean = [0.5, 0.5, 0.5]
+img = img * std + mean
+cv2.imshow('win', img)  # opencv显示需要识别的数据图片
+key_pressed = cv2.waitKey(0)
