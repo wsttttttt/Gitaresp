@@ -127,7 +127,6 @@ for epoch in range(EPOCH):
              pred_y = torch.max(test_output, 1)[1].data.numpy()
              accuracy = float((pred_y == test_y.data.numpy()).astype(int).sum()) / float(test_y.size(0))   #这里是准确度的一种粗糙的算法
              print('Epoch: ', epoch, '| train loss: %.4f' % loss.data.numpy(), '| test accuracy: %.2f' % accuracy)
-
 torch.save(cnn.state_dict(), 'cnn2.pkl')#保存模型
 """
 # 加载模型，调用时需将前面训练及保存模型的代码注释掉，否则会再训练一遍
