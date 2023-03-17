@@ -7,6 +7,7 @@ from torch.nn.modules.conv import _ConvNd
 # from cnnbase import ConvBase
 from torch.nn.modules.utils import _pair
 from torch.nn.common_types import _size_2_t
+import numpy as np
 
 class Conv2d(_ConvNd):
    
@@ -65,7 +66,13 @@ class Linear(Module):
             
             
     def forward(self, input):
-        '''TODO'''
+        if input.dim() == 2 and self.bias is not None:
+    # fused op is marginally faster
+            self.output = torch.addmm(self.bias, input, self.weight.t())
+        else:
+             self.output = np.matmul(self.weight.t())
+             if self.bias is not None:
+                self.output += self.bias
         return self.output
     def backward(self, ones: Tensor):
         '''TODO'''
