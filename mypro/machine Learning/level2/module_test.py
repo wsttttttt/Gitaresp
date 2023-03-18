@@ -114,13 +114,11 @@ class LinearTest(TestBase):
     def backward_test(self):
         s = super().backward_test()
         if s:
-            s = isclose(self.nnm.weight.grad, self.pt_wgt.grad
-                     .detach().numpy()).all().item()
+            s = isclose(self.nnm.weight.grad, self.pt_wgt.grad.detach().numpy()).all().item() 
             if s == False:
                 print('weight_grad_dismatch')
         if s:
-            s = isclose(self.nnm.bias.grad, self.pt_bias.grad
-                     .detach().numpy()).all().item()
+            s = isclose(self.nnm.bias.grad, self.pt_bias.grad.detach().numpy() ).all().item()#
             if s == False:
                 print('bias_grad_dismatch')
         return s
@@ -157,9 +155,9 @@ class CrossEntropyTest(TestBase):
             return False
 
 if __name__ == "__main__":
-    test_list = [LinearTest(),CrossEntropyTest(),Conv2dTest()]
+    test_list = [LinearTest(),Conv2dTest(),CrossEntropyTest()]
     for a in test_list:
         print("Test",a.module)
         print("forward:",a.forward_test())
-        # print("backword:",a.backward_test())
+        #print("backword:",a.backward_test())
 

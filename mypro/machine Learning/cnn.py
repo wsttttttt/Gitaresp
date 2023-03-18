@@ -62,7 +62,7 @@ class CNN(nn.Module):  # 我们建立的CNN继承nn.Module这个模块
             # 第一个卷积con2d
             nn.Conv2d(  # 输入图像大小(1,28,28)
                 in_channels=1,  # 输入图片的高度，因为minist数据集是灰度图像只有一个通道
-                out_channels=16,  # n_filters 卷积核的高度
+                out_channels=16,  # 输出通道
                 kernel_size=5,  # filter size 卷积核的大小 也就是长x宽=5x5
                 stride=1,  # 步长
                 padding=2,  # 想要con2d输出的图片长宽不变，就进行补零操作 padding = (kernel_size-1)/2
@@ -129,22 +129,17 @@ for epoch in range(EPOCH):
              print('Epoch: ', epoch, '| train loss: %.4f' % loss.data.numpy(), '| test accuracy: %.2f' % accuracy)
 torch.save(cnn.state_dict(), 'cnn2.pkl')#保存模型
 """
-# 加载模型，调用时需将前面训练及保存模型的代码注释掉，否则会再训练一遍
+# 加载模型，调用时就把前面训练及保存模型的代码注释掉，不然会一直训练。。。
 cnn.load_state_dict(torch.load('cnn2.pkl'))
 cnn.eval()
-# print 10 predictions from test data
-inputs = test_x[:40]  # 测试32个数据
+inputs = test_x[:40]  # 测试数据
 test_output = cnn(inputs)
 pred_y = torch.max(test_output, 1)[1].data.numpy()
 print(pred_y, 'prediction number')  # 打印识别后的数字
-# print(test_y[:10].numpy(), 'real number')
+print(test_y[:40].numpy(), 'real number')
 
 img = torchvision.utils.make_grid(inputs)
 img = img.numpy().transpose(1, 2, 0)
 
-# 下面三行为改变图片的亮度
-std = [0.5, 0.5, 0.5]
-mean = [0.5, 0.5, 0.5]
-img = img * std + mean
-cv2.imshow('win', img)  # opencv显示需要识别的数据图片
+cv2.imshow('win', img)  # opencv 通过imshow方法显示需要识别的数据图片
 key_pressed = cv2.waitKey(0)

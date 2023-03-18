@@ -345,3 +345,132 @@ train_loader = Data.DataLoader(
 卷积(Conv2d)-> 激励函数(ReLU)->池化(MaxPooling)->
 
 展平多维的卷积成的特征图->接入全连接层(Linear)->输出 
+
+```
+class CNN(nn.Module):  # 我们建立的CNN继承nn.Module这个模块
+    def __init__(self):
+        super(CNN, self).__init__()
+        # 建立第一个卷积(Conv2d)-> 激励函数(ReLU)->池化(MaxPooling)
+        self.conv1 = nn.Sequential(
+            # 第一个卷积con2d
+            nn.Conv2d(  # 输入图像大小(1,28,28)
+                in_channels=1,  # 输入图片的高度，因为minist数据集是灰度图像只有一个通道
+                out_channels=16,  # 输出通道
+                kernel_size=5,  # filter size 卷积核的大小 也就是长x宽=5x5
+                stride=1,  # 步长
+                padding=2,  # 想要con2d输出的图片长宽不变，就进行补零操作 padding = (kernel_size-1)/2
+            ),  # 输出图像大小(16,28,28)
+            # 激活函数
+            nn.ReLU(),
+            # 池化，下采样
+            nn.MaxPool2d(kernel_size=2),  # 在2x2空间下采样
+            # 输出图像大小(16,14,14)
+        )
+        # 建立第二个卷积(Conv2d)-> 激励函数(ReLU)->池化(MaxPooling)
+        self.conv2 = nn.Sequential(
+            # 输入图像大小(16,14,14)
+            nn.Conv2d(  # 也可以直接简化写成nn.Conv2d(16,32,5,1,2)
+                in_channels=16,
+                out_channels=32,
+                kernel_size=5,
+                stride=1,
+                padding=2
+            ),
+            # 输出图像大小 (32,14,14)
+            nn.ReLU(),
+            nn.MaxPool2d(2),
+            # 输出图像大小(32,7,7)
+        )
+        # 建立全卷积连接层
+        self.out = nn.Linear(32 * 7 * 7, 10)  # 输出是10个类
+
+    # 下面定义x的传播路线
+    def forward(self, x):
+        x = self.conv1(x)  # x先通过conv1
+        x = self.conv2(x)  # 再通过conv2
+        # 把每一个批次的每一个输入都拉成一个维度，即(batch_size,32*7*7)
+        # 因为pytorch里特征的形式是[bs,channel,h,w]，所以x.size(0)就是batchsize
+        x = x.view(x.size(0), -1)  # view就是把x弄成batchsize行个tensor
+        output = self.out(x)
+        return output
+
+```
+
+## level 2
+
+### level 2.1
+
+forward的实现
+
+#### 1.1 conv2d
+
+```
+    def conv2d(self, input:Tensor, kernel:Tensor, bias = 0, stride=1, padding=0):
+         if padding > 0:
+           input = F.pad(input, (padding, padding, padding, padding))
+         bs,in_channels,input_h, input_w = input.shape
+         out_channel, in_channel,kernel_h, kernel_w = kernel.shape
+         #input = input.view(input.size(0), -1)
+         #kernel = kernel.view(kernel.size(0), -1)
+         output_h = (math.floor((input_h - kernel_h) / stride) + 1)
+         output_w = (math.floor((input_w - kernel_w) / stride) + 1)
+
+         if bias is None:
+            bias = torch.zeros(out_channel)
+
+    # 初始化输出矩阵
+         output = torch.zeros(bs, out_channel, output_h, output_w)
+         
+         for ind in range(bs): #控制batch-size
+          for oc in range(out_channel):   #
+            for ic in range(in_channel):  #这两层是通过计算出的输出矩阵进行卷积核运动的逻辑控制
+                for i in range(0, input_h - kernel_h + 1, stride): #对运动进行具体控制
+                    for j in range(0, input_w - kernel_w + 1, stride):
+                        region = input[ind, ic, i:i + kernel_h, j: j + kernel_w]
+                        # 点乘相加
+                        output[ind, oc, int(i / stride), int(j / stride)] += torch.sum(region * kernel[oc, ic])
+            output[ind, oc] += bias[oc]
+
+
+         return output
+```
+
+
+
+先计算出输出图片的长和宽（像素点有多少），再依据输出和卷积核大小，通过四重循环逻辑控制卷积运动并取值
+
+#### 1.2 linear
+
+```
+self.output = torch.addmm(self.bias, input, self. weight.t())
+```
+
+构建一个线性的链接
+
+#### 1.3 crossentropyloss
+
+```
+def __call__(self, input, target):
+        self.output = 0.
+        for i in range(input.shape[0]):
+
+            numerator = torch.exp(input[i, target[i]])     # 分子
+            denominator = torch.sum(torch.exp(input[i, :]))   # 分母
+
+            # 计算单个损失
+            loss = -torch.log(numerator / denominator)
+           
+            #print("单个损失： ",loss)
+
+            # 损失累加
+            self.output += loss
+
+        # 整个 batch 的总损失是否要求平均
+        
+        self.output /= input.shape[0]
+
+        
+        return self.output
+```
+
+实际上就是softmax+log+nlloss的过程
