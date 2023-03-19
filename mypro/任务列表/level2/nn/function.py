@@ -10,6 +10,7 @@ from torch.nn.common_types import _size_2_t
 import numpy as np
 import torch.nn.functional as F
 import math
+import torch.nn as nn
 
 class Conv2d(_ConvNd):
    
@@ -54,7 +55,7 @@ class Conv2d(_ConvNd):
          
          for ind in range(bs): #控制batch-size
           for oc in range(out_channel):   #
-            for ic in range(in_channel):  #这两层是通过计算出的输出矩阵进行卷积核运动的逻辑控制
+            for ic in range(in_channels):  #
                 for i in range(0, input_h - kernel_h + 1, stride): #对运动进行具体控制
                     for j in range(0, input_w - kernel_w + 1, stride):
                         region = input[ind, ic, i:i + kernel_h, j: j + kernel_w]
@@ -71,7 +72,7 @@ class Conv2d(_ConvNd):
         return self.conv2d(input, weight, bias)
     
     def backward(self, ones: Tensor):
-        '''TODO backward的计算方法''' 
+         
         return self.input.grad
     
 class Linear(Module):
@@ -94,23 +95,22 @@ class Linear(Module):
             
     def forward(self, input): #输入的维数是否可控？
            self.input=input
+           #self.save_for_backward(input)
            self.output = torch.addmm(self.bias, input, self. weight.t()) #.t()将tensor进行转置，这行起到将后两个参数进行内积再加上bias偏置。
         
         
            return self.output
-    def backward(self, ones: Tensor):#
-        #self.weight.grad= torch.mm(self.input.T,ones)
-        self.bias.grad=ones
-        #self.input.grad =   
-        return torch.mm(ones,self.weight.T)  #self.input.grad
-       
-        
+    def Backward(self,ones):#
+       "TODO"
+       return 
 
 class CrossEntropyLoss():
     def __init__(self):
         pass
     def __call__(self, input, target):
         self.output = 0.
+        self.target=target
+        #self.input=input
         for i in range(input.shape[0]):
 
             numerator = torch.exp(input[i, target[i]])     # 分子
@@ -125,12 +125,18 @@ class CrossEntropyLoss():
             self.output += loss
 
         # 整个 batch 的总损失是否要求平均
-        
+        self.input=input
         self.output /= input.shape[0]
 
         
         return self.output
     def backward(self):
-        '''TODO'''
-        return self.input.grad
+       #self.input.grad:Tensor
+       self.input.grad = torch.zeros(self.input.shape[0])
+       for i in range(self.input.shape[0]):
+             numerator = torch.exp(self.input[i, self.target[i]])     # 分子
+             denominator = torch.sum(torch.exp(self.input[i, :]))   # 分母 
+             loss = -torch.log(numerator / denominator)
+             self.input.grad[i]=torch.diff(loss,self.target[i])
+       return self.input.grad
         

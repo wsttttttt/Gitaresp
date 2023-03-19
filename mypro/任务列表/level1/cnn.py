@@ -6,8 +6,10 @@ import torch.nn as nn
 import torch.utils.data as Data
 import torchvision
 import matplotlib.pyplot as plt
+from PIL import Image
 import os
 import cv2
+import gradio as gr
 
 
 torch.manual_seed(1)  # 使用随机化种子使神经网络的初始化每次都相同
@@ -143,3 +145,8 @@ img = img.numpy().transpose(1, 2, 0)
 
 cv2.imshow('win', img)  # opencv 通过imshow方法显示需要识别的数据图片
 key_pressed = cv2.waitKey(0)
+#interface=gr.Interface(fn=CNN,inputs="sketchpad", outputs="text")
+#interface.launch()
+#img=Image.open("test.png").convert("L")
+#img.view(-1,784)
+#result=modle()
